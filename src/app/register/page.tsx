@@ -3,35 +3,44 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react"
-import { useAuth } from "@/context/auth-context"
-import { useRouter } from "next/navigation"
+import { ArrowLeft, Eye, EyeOff, UserPlus } from "lucide-react"
+import { useAuth } from "@/lib/auth"
+import { toast } from "react-hot-toast"
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const [confirmPassword, setConfirmPassword] = useState("")
   
-  const { signIn } = useAuth()
+  const { signUp } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match")
+      return
+    }
+    
     setIsLoading(true)
-    setError(null)
     
     try {
-      await signIn(email, password)
-      // Redirect handled in auth context
-    } catch (err: any) {
-      console.error("Login error:", err)
-      setError("Invalid email or password. Please try again.")
+      await signUp(email, password, firstName, lastName)
+      toast.success("Account created! Please check your email to confirm your registration.")
+      router.push("/login")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create account")
     } finally {
       setIsLoading(false)
     }
@@ -74,7 +83,7 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              Welcome back
+              Create an account
             </motion.h1>
             <motion.p
               className="mt-2 text-gray-400"
@@ -82,19 +91,9 @@ export default function LoginPage() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
-              Sign in to your account
+              Join our machine monitoring platform
             </motion.p>
           </div>
-
-          {error && (
-            <motion.div 
-              className="bg-red-900/50 border border-red-800 text-red-300 px-4 py-3 rounded-md"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {error}
-            </motion.div>
-          )}
 
           <motion.form
             onSubmit={handleSubmit}
@@ -103,6 +102,38 @@ export default function LoginPage() {
             initial="hidden"
             animate="visible"
           >
+            <div className="grid grid-cols-2 gap-4">
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="first-name" className="text-gray-300">
+                  First Name
+                </Label>
+                <Input
+                  id="first-name"
+                  type="text"
+                  placeholder="John"
+                  required
+                  className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </motion.div>
+
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="last-name" className="text-gray-300">
+                  Last Name
+                </Label>
+                <Input
+                  id="last-name"
+                  type="text"
+                  placeholder="Doe"
+                  required
+                  className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </motion.div>
+            </div>
+
             <motion.div variants={itemVariants} className="space-y-2">
               <Label htmlFor="email" className="text-gray-300">
                 Email
@@ -110,11 +141,11 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                placeholder="john.doe@example.com"
                 required
                 className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </motion.div>
 
@@ -126,11 +157,11 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Create a password"
                   required
                   className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500 pr-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
@@ -142,16 +173,42 @@ export default function LoginPage() {
               </div>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Checkbox id="remember-me" className="text-blue-500 focus:ring-blue-500" />
-                <Label htmlFor="remember-me" className="ml-2 text-sm text-gray-300">
-                  Remember me
-                </Label>
+            <motion.div variants={itemVariants} className="space-y-2">
+              <Label htmlFor="confirm-password" className="text-gray-300">
+                Confirm Password
+              </Label>
+              <div className="relative">
+                <Input
+                  id="confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm your password"
+                  required
+                  className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500 pr-10"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
-              <Link href="#" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
-                Forgot password?
-              </Link>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="flex items-center">
+              <Checkbox id="terms" required className="text-blue-500 focus:ring-blue-500" />
+              <Label htmlFor="terms" className="ml-2 text-sm text-gray-300">
+                I agree to the{" "}
+                <Link href="/terms" className="text-blue-400 hover:text-blue-300 transition-colors">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-blue-400 hover:text-blue-300 transition-colors">
+                  Privacy Policy
+                </Link>
+              </Label>
             </motion.div>
 
             <motion.div variants={itemVariants}>
@@ -186,8 +243,8 @@ export default function LoginPage() {
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    <LogIn className="mr-2 h-5 w-5" />
-                    Sign in
+                    <UserPlus className="mr-2 h-5 w-5" />
+                    Create Account
                   </div>
                 )}
               </Button>
@@ -201,9 +258,9 @@ export default function LoginPage() {
             transition={{ delay: 0.6, duration: 0.5 }}
           >
             <p className="text-gray-400">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="text-blue-400 hover:text-blue-300 transition-colors">
-                Register
+              Already have an account?{" "}
+              <Link href="/login" className="text-blue-400 hover:text-blue-300 transition-colors">
+                Sign in
               </Link>
             </p>
           </motion.div>

@@ -3,51 +3,33 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Eye, EyeOff, UserPlus } from "lucide-react"
-import { useAuth } from "@/context/auth-context"
-import { useRouter } from "next/navigation"
+import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react"
+import { useAuth } from "@/lib/auth"
+import { toast } from "react-hot-toast"
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  
-  const { signUp } = useAuth()
+  const { signIn } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Form validation
-    if (password !== confirmPassword) {
-      setError("Passwords do not match")
-      return
-    }
-    
     setIsLoading(true)
-    setError(null)
     
     try {
-      const fullName = `${firstName} ${lastName}`.trim()
-      await signUp(email, password, fullName)
-      // Redirect handled in auth context
-    } catch (err: any) {
-      console.error("Registration error:", err)
-      if (err.message?.includes("already exists")) {
-        setError("An account with this email already exists.")
-      } else {
-        setError("Failed to create account. Please try again.")
-      }
+      await signIn(email, password)
+      toast.success("Logged in successfully!")
+      router.push("/dashboard")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to login")
     } finally {
       setIsLoading(false)
     }
@@ -90,7 +72,7 @@ export default function RegisterPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              Create an account
+              Welcome back
             </motion.h1>
             <motion.p
               className="mt-2 text-gray-400"
@@ -98,19 +80,9 @@ export default function RegisterPage() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
-              Join our community today
+              Sign in to your machine monitoring dashboard
             </motion.p>
           </div>
-
-          {error && (
-            <motion.div 
-              className="bg-red-900/50 border border-red-800 text-red-300 px-4 py-3 rounded-md"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {error}
-            </motion.div>
-          )}
 
           <motion.form
             onSubmit={handleSubmit}
@@ -119,38 +91,6 @@ export default function RegisterPage() {
             initial="hidden"
             animate="visible"
           >
-            <div className="grid grid-cols-2 gap-4">
-              <motion.div variants={itemVariants} className="space-y-2">
-                <Label htmlFor="first-name" className="text-gray-300">
-                  First Name
-                </Label>
-                <Input
-                  id="first-name"
-                  type="text"
-                  placeholder="John"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
-                />
-              </motion.div>
-
-              <motion.div variants={itemVariants} className="space-y-2">
-                <Label htmlFor="last-name" className="text-gray-300">
-                  Last Name
-                </Label>
-                <Input
-                  id="last-name"
-                  type="text"
-                  placeholder="Doe"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                  className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
-                />
-              </motion.div>
-            </div>
-
             <motion.div variants={itemVariants} className="space-y-2">
               <Label htmlFor="email" className="text-gray-300">
                 Email
@@ -158,11 +98,11 @@ export default function RegisterPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="john.doe@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
                 required
                 className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </motion.div>
 
@@ -174,11 +114,11 @@ export default function RegisterPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Create a password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
                   required
                   className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500 pr-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
@@ -190,42 +130,16 @@ export default function RegisterPage() {
               </div>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="space-y-2">
-              <Label htmlFor="confirm-password" className="text-gray-300">
-                Confirm Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="confirm-password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  className="bg-gray-900 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
-                >
-                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+            <motion.div variants={itemVariants} className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Checkbox id="remember-me" className="text-blue-500 focus:ring-blue-500" />
+                <Label htmlFor="remember-me" className="ml-2 text-sm text-gray-300">
+                  Remember me
+                </Label>
               </div>
-            </motion.div>
-
-            <motion.div variants={itemVariants} className="flex items-center">
-              <Checkbox id="terms" required className="text-blue-500 focus:ring-blue-500" />
-              <Label htmlFor="terms" className="ml-2 text-sm text-gray-300">
-                I agree to the{" "}
-                <Link href="#" className="text-blue-400 hover:text-blue-300 transition-colors">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="#" className="text-blue-400 hover:text-blue-300 transition-colors">
-                  Privacy Policy
-                </Link>
-              </Label>
+              <Link href="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                Forgot password?
+              </Link>
             </motion.div>
 
             <motion.div variants={itemVariants}>
@@ -260,8 +174,8 @@ export default function RegisterPage() {
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    <UserPlus className="mr-2 h-5 w-5" />
-                    Create Account
+                    <LogIn className="mr-2 h-5 w-5" />
+                    Sign in
                   </div>
                 )}
               </Button>
@@ -275,9 +189,9 @@ export default function RegisterPage() {
             transition={{ delay: 0.6, duration: 0.5 }}
           >
             <p className="text-gray-400">
-              Already have an account?{" "}
-              <Link href="/login" className="text-blue-400 hover:text-blue-300 transition-colors">
-                Sign in
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="text-blue-400 hover:text-blue-300 transition-colors">
+                Register
               </Link>
             </p>
           </motion.div>
