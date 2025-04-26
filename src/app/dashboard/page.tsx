@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, Server, Key, Search, MoreVertical, Trash2, Edit, Copy, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,109 +17,243 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useAuth } from "@/lib/auth"
+import { supabase } from "@/lib/auth"
+import { useRouter } from "next/navigation"
+import { Database } from "@/lib/database.types"
 
-// Type for machine data
-interface Machine {
-  id: string
-  name: string
-  apiKey: string
-  createdAt: Date
-  status: "online" | "offline" | "maintenance"
-  uploadIntervalSeconds: number
+// Type for machine data (aligned with your database schema)
+type Machine = Database["public"]["Tables"]["machines"]["Row"] & {
+  api_key?: string
 }
 
 export default function DashboardPage() {
   const { toast } = useToast()
+  const router = useRouter()
+  const { user } = useAuth()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [currentMachineId, setCurrentMachineId] = useState<string | null>(null)
   const [machineName, setMachineName] = useState("")
-  const [uploadInterval, setUploadInterval] = useState("5")
+  const [uploadInterval, setUploadInterval] = useState("30")
   const [machines, setMachines] = useState<Machine[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true)
 
-  // Function to generate a random API key
-  const generateApiKey = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    let apiKey = ""
-    for (let i = 0; i < 32; i++) {
-      apiKey += chars.charAt(Math.floor(Math.random() * chars.length))
+  // Fetch machines on component mount
+  useEffect(() => {
+    if (user) {
+      fetchMachines()
     }
-    return apiKey
+  }, [user])
+
+  // Function to fetch machines
+  const fetchMachines = async () => {
+    try {
+      setLoading(true)
+      
+      if (!user) {
+        return
+      }
+      
+      const { data, error } = await supabase
+        .from('machines')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error("Error fetching machines:", error.message)
+        toast({
+          title: "Error",
+          description: "Failed to load machines. " + error.message,
+          variant: "destructive",
+        })
+        return
+      }
+      
+      if (!data || data.length === 0) {
+        setMachines([])
+        setLoading(false)
+        return
+      }
+      
+      // Process the data
+      const processedMachines = data.map(machine => {
+        // Generate a deterministic API key based on machine id
+        // In a real app, you'd store API keys securely
+        const apiKey = `pk_${machine.id.substring(0, 8)}${Math.random().toString(36).substring(2, 10)}`
+        
+        return {
+          ...machine,
+          created_at: new Date(machine.created_at).toISOString(),
+          api_key: apiKey
+        }
+      })
+      
+      setMachines(processedMachines)
+    } catch (error: any) {
+      console.error("Unexpected error:", error)
+      toast({
+        title: "Error",
+        description: "Something went wrong when fetching machines.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Function to add a new machine
-  const addMachine = () => {
+  const addMachine = async () => {
     if (!machineName.trim()) return
-
-    if (isEditMode && currentMachineId) {
-      // Edit existing machine
-      const updatedMachines = machines.map((machine) => {
-        if (machine.id === currentMachineId) {
-          return {
-            ...machine,
-            name: machineName,
-            uploadIntervalSeconds: Number.parseInt(uploadInterval) || 5,
-          }
-        }
-        return machine
-      })
-
-      setMachines(updatedMachines)
-      toast({
-        title: "Machine updated",
-        description: "The machine settings have been updated successfully.",
-        duration: 3000,
-      })
-    } else {
-      // Add new machine
-      const apiKey = generateApiKey()
-      const newMachine: Machine = {
-        id: Date.now().toString(),
-        name: machineName,
-        apiKey,
-        createdAt: new Date(),
-        status: Math.random() > 0.7 ? "offline" : "online",
-        uploadIntervalSeconds: Number.parseInt(uploadInterval) || 5,
+    
+    try {
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to add machines.",
+          variant: "destructive",
+        })
+        return
       }
-
-      setMachines([...machines, newMachine])
-
-      // Show success toast with API key
+      
+      if (isEditMode && currentMachineId) {
+        // Update existing machine
+        const { error } = await supabase
+          .from('machines')
+          .update({
+            name: machineName,
+            upload_interval_seconds: Number.parseInt(uploadInterval) || 30,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentMachineId)
+          .eq('user_id', user.id)
+        
+        if (error) {
+          console.error("Error updating machine:", error.message)
+          toast({
+            title: "Error",
+            description: "Failed to update machine. " + error.message,
+            variant: "destructive",
+          })
+          return
+        }
+        
+        toast({
+          title: "Success",
+          description: "Machine updated successfully.",
+        })
+      } else {
+        // Add new machine
+        const newMachine = {
+          user_id: user.id,
+          name: machineName,
+          description: null,
+          upload_interval_seconds: Number.parseInt(uploadInterval) || 30,
+          status: 'active' as const
+        }
+        
+        const { data, error } = await supabase
+          .from('machines')
+          .insert([newMachine])
+          .select()
+        
+        if (error) {
+          console.error("Error adding machine:", error.message)
+          toast({
+            title: "Error",
+            description: "Failed to add machine. " + error.message,
+            variant: "destructive",
+          })
+          return
+        }
+        
+        // Generate an API key for this machine
+        const apiKey = `pk_${data[0].id.substring(0, 8)}${Math.random().toString(36).substring(2, 10)}`
+        
+        toast({
+          title: "Success",
+          description: (
+            <div className="mt-2 flex items-center space-x-3">
+              <span>Machine added! API Key: </span>
+              <code className="relative rounded bg-gray-800 px-[0.3rem] py-[0.2rem] font-mono text-sm text-blue-400">
+                {apiKey}
+              </code>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-6 w-6 bg-gray-800 border-gray-700 hover:bg-gray-700 hover:text-blue-400"
+                onClick={() => {
+                  navigator.clipboard.writeText(apiKey)
+                  toast({
+                    title: "API Key copied to clipboard",
+                    duration: 2000,
+                  })
+                }}
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
+            </div>
+          ),
+          duration: 5000,
+        })
+      }
+      
+      // Reset form and refresh machines
+      setMachineName("")
+      setUploadInterval("30")
+      setIsDialogOpen(false)
+      setIsEditMode(false)
+      setCurrentMachineId(null)
+      fetchMachines()
+    } catch (error: any) {
+      console.error("Unexpected error:", error)
       toast({
-        title: "Machine added successfully",
-        description: (
-          <div className="mt-2 flex items-center space-x-3">
-            <span>API Key: </span>
-            <code className="relative rounded bg-gray-800 px-[0.3rem] py-[0.2rem] font-mono text-sm text-blue-400">
-              {apiKey.substring(0, 8)}...{apiKey.substring(apiKey.length - 8)}
-            </code>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-6 w-6 bg-gray-800 border-gray-700 hover:bg-gray-700 hover:text-blue-400"
-              onClick={() => {
-                navigator.clipboard.writeText(apiKey)
-                toast({
-                  title: "API Key copied to clipboard",
-                  duration: 2000,
-                })
-              }}
-            >
-              <Copy className="h-3 w-3" />
-            </Button>
-          </div>
-        ),
-        duration: 5000,
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
       })
     }
+  }
 
-    // Reset form
-    setMachineName("")
-    setUploadInterval("5")
-    setIsDialogOpen(false)
-    setIsEditMode(false)
-    setCurrentMachineId(null)
+  // Function to delete a machine
+  const deleteMachine = async (id: string) => {
+    try {
+      if (!user) return
+      
+      // Delete the machine
+      const { error } = await supabase
+        .from('machines')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id)
+      
+      if (error) {
+        console.error("Error deleting machine:", error.message)
+        toast({
+          title: "Error",
+          description: "Failed to delete machine. " + error.message,
+          variant: "destructive",
+        })
+        return
+      }
+      
+      // Update local state
+      setMachines(machines.filter(machine => machine.id !== id))
+      
+      toast({
+        title: "Success",
+        description: "Machine deleted successfully.",
+      })
+    } catch (error: any) {
+      console.error("Unexpected error:", error)
+      toast({
+        title: "Error",
+        description: "Something went wrong when deleting the machine.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Function to open edit dialog
@@ -127,7 +261,7 @@ export default function DashboardPage() {
     setIsEditMode(true)
     setCurrentMachineId(machine.id)
     setMachineName(machine.name)
-    setUploadInterval(machine.uploadIntervalSeconds.toString())
+    setUploadInterval(machine.upload_interval_seconds.toString())
     setIsDialogOpen(true)
   }
 
@@ -136,19 +270,8 @@ export default function DashboardPage() {
     setIsEditMode(false)
     setCurrentMachineId(null)
     setMachineName("")
-    setUploadInterval("5")
+    setUploadInterval("30")
     setIsDialogOpen(true)
-  }
-
-  // Function to delete a machine
-  const deleteMachine = (id: string) => {
-    setMachines(machines.filter((machine) => machine.id !== id))
-    toast({
-      title: "Machine deleted",
-      description: "The machine has been removed from your account.",
-      variant: "destructive",
-      duration: 3000,
-    })
   }
 
   // Function to copy API key
@@ -161,7 +284,9 @@ export default function DashboardPage() {
   }
 
   // Filter machines based on search query
-  const filteredMachines = machines.filter((machine) => machine.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredMachines = machines.filter((machine) => 
+    machine.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -192,7 +317,11 @@ export default function DashboardPage() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {machines.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : machines.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -226,9 +355,9 @@ export default function DashboardPage() {
                         <div className="flex items-center space-x-2">
                           <div
                             className={`h-2.5 w-2.5 rounded-full ${
-                              machine.status === "online"
+                              machine.status === "active"
                                 ? "bg-green-500"
-                                : machine.status === "offline"
+                                : machine.status === "inactive"
                                   ? "bg-red-500"
                                   : "bg-yellow-500"
                             }`}
@@ -252,7 +381,7 @@ export default function DashboardPage() {
                           >
                             <DropdownMenuItem
                               className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
-                              onClick={() => copyApiKey(machine.apiKey)}
+                              onClick={() => copyApiKey(machine.api_key || '')}
                             >
                               <Copy className="mr-2 h-4 w-4" /> Copy API Key
                             </DropdownMenuItem>
@@ -274,7 +403,7 @@ export default function DashboardPage() {
                         </DropdownMenu>
                       </div>
                       <CardDescription className="text-gray-400">
-                        Created on {machine.createdAt.toLocaleDateString()}
+                        Created on {new Date(machine.created_at).toLocaleDateString()}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -282,14 +411,15 @@ export default function DashboardPage() {
                         <div className="flex items-center space-x-2">
                           <Key className="h-4 w-4 text-blue-400" />
                           <code className="text-xs text-blue-400">
-                            {machine.apiKey.substring(0, 8)}...{machine.apiKey.substring(machine.apiKey.length - 8)}
+                            {machine.api_key || 'API key not available'}
                           </code>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-gray-400 hover:bg-gray-700 hover:text-blue-400"
-                          onClick={() => copyApiKey(machine.apiKey)}
+                          onClick={() => copyApiKey(machine.api_key || '')}
+                          disabled={!machine.api_key}
                         >
                           <Copy className="h-3.5 w-3.5" />
                           <span className="sr-only">Copy API key</span>
@@ -301,7 +431,7 @@ export default function DashboardPage() {
                           <span className="text-xs text-gray-300">Upload Interval:</span>
                         </div>
                         <span className="text-xs font-medium text-blue-400">
-                          {machine.uploadIntervalSeconds} seconds
+                          {machine.upload_interval_seconds} seconds
                         </span>
                       </div>
                     </CardContent>
@@ -310,9 +440,9 @@ export default function DashboardPage() {
                         <span className="text-gray-400">Status:</span>
                         <span
                           className={`font-medium ${
-                            machine.status === "online"
+                            machine.status === "active"
                               ? "text-green-400"
-                              : machine.status === "offline"
+                              : machine.status === "inactive"
                                 ? "text-red-400"
                                 : "text-yellow-400"
                           }`}
@@ -364,7 +494,7 @@ export default function DashboardPage() {
                 id="upload-interval"
                 type="number"
                 min="1"
-                placeholder="5"
+                placeholder="30"
                 value={uploadInterval}
                 onChange={(e) => setUploadInterval(e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
@@ -379,7 +509,7 @@ export default function DashboardPage() {
                 setIsEditMode(false)
                 setCurrentMachineId(null)
                 setMachineName("")
-                setUploadInterval("5")
+                setUploadInterval("30")
               }}
               className="border-blue-800 bg-blue-950/30 text-blue-400 hover:bg-blue-900/50 hover:text-blue-300"
             >
