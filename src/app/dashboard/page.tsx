@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Plus, Server, Key, Search, MoreVertical, Trash2, Edit, Copy, Clock } from "lucide-react"
+import { Plus, Server, Key, Search, MoreVertical, Trash2, Edit, Copy, Clock, File, Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -82,7 +82,7 @@ export default function DashboardPage() {
       const processedMachines = data.map(machine => {
         // Generate a deterministic API key based on machine id
         // In a real app, you'd store API keys securely
-        const apiKey = `pk_${machine.id.substring(0, 8)}${Math.random().toString(36).substring(2, 10)}`
+        const apiKey = machine.id
         
         return {
           ...machine,
@@ -169,31 +169,11 @@ export default function DashboardPage() {
           return
         }
         
-        // Generate an API key for this machine
-        const apiKey = `pk_${data[0].id.substring(0, 8)}${Math.random().toString(36).substring(2, 10)}`
-        
         toast({
           title: "Success",
           description: (
             <div className="mt-2 flex items-center space-x-3">
-              <span>Machine added! API Key: </span>
-              <code className="relative rounded bg-gray-800 px-[0.3rem] py-[0.2rem] font-mono text-sm text-blue-400">
-                {apiKey}
-              </code>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-6 w-6 bg-gray-800 border-gray-700 hover:bg-gray-700 hover:text-blue-400"
-                onClick={() => {
-                  navigator.clipboard.writeText(apiKey)
-                  toast({
-                    title: "API Key copied to clipboard",
-                    duration: 2000,
-                  })
-                }}
-              >
-                <Copy className="h-3 w-3" />
-              </Button>
+              <span>Machine added! </span>
             </div>
           ),
           duration: 5000,
@@ -202,7 +182,7 @@ export default function DashboardPage() {
       
       // Reset form and refresh machines
       setMachineName("")
-      setUploadInterval("30")
+      setUploadInterval("5")
       setIsDialogOpen(false)
       setIsEditMode(false)
       setCurrentMachineId(null)
@@ -270,7 +250,7 @@ export default function DashboardPage() {
     setIsEditMode(false)
     setCurrentMachineId(null)
     setMachineName("")
-    setUploadInterval("30")
+    setUploadInterval("5")
     setIsDialogOpen(true)
   }
 
@@ -392,6 +372,24 @@ export default function DashboardPage() {
                               }}
                             >
                               <Edit className="mr-2 h-4 w-4" /> Edit Machine
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
+                              onClick={() => router.push(`/dashboard/file-upload/${machine.id}`)}
+                            >
+                              <File className="mr-2 h-4 w-4" /> File Upload
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
+                              onClick={() => router.push(`/dashboard/camera-upload/${machine.id}`)}
+                            >
+                              <Camera className="mr-2 h-4 w-4" /> Camera Upload
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
+                              onClick={() => router.push(`/dashboard/result/${machine.id}`)}
+                            >
+                              <File className="mr-2 h-4 w-4" /> View Result
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="flex cursor-pointer items-center bg-red-600 text-white rounded-md px-3 py-2 text-sm hover:bg-red-700 focus:bg-red-700 focus:text-white transition-colors"
