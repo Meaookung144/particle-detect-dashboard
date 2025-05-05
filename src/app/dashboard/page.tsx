@@ -39,7 +39,36 @@ export default function DashboardPage() {
   const [machines, setMachines] = useState<Machine[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
+  const [resultStats, setResultStats] = useState<null | {
+    detected: number;
+    fail: number;
+    pending: number;
+    total_images: number;
+    total_particles: number;
+    particles: {
+      alpha: number;
+      electron: number;
+      proton: number;
+    };
+  }>(null);
+  
+  const API_ENDPOINT = process.env.API_ENDPOINT || "http://localhost:8080/api";
 
+  useEffect(() => {
+    const fetchResultStats = async () => {
+      try {
+        const res = await fetch(`${API_ENDPOINT}/result`);
+        const data = await res.json();
+        setResultStats(data);
+      } catch (error) {
+        console.error("Failed to fetch result stats", error);
+      }
+    };
+
+    fetchResultStats();
+  }, []);
+
+  
   // Fetch machines on component mount
   useEffect(() => {
     if (user) {
@@ -317,142 +346,176 @@ export default function DashboardPage() {
               <Plus className="mr-2 h-4 w-4" /> Add Machine
             </Button>
           </motion.div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        ) : ( 
+          <div>
             <AnimatePresence>
-              {filteredMachines.map((machine) => (
-                <motion.div
-                  key={machine.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.2 }}
-                  layout
-                >
-                  <Card className="overflow-hidden bg-gray-900 border-gray-800 text-gray-100 hover:border-gray-700 transition-colors">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div
-                            className={`h-2.5 w-2.5 rounded-full ${
-                              machine.status === "active"
-                                ? "bg-green-500"
-                                : machine.status === "inactive"
-                                  ? "bg-red-500"
-                                  : "bg-yellow-500"
-                            }`}
-                          />
-                          <CardTitle className="text-lg font-medium text-white">{machine.name}</CardTitle>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="bg-blue-900 border-blue-800 text-white rounded-lg shadow-lg shadow-blue-900/20 p-1.5 w-48"
-                          >
-                            <DropdownMenuItem
-                              className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
-                              onClick={() => copyApiKey(machine.api_key || '')}
-                            >
-                              <Copy className="mr-2 h-4 w-4" /> Copy API Key
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
-                              onClick={() => {
-                                openEditDialog(machine)
-                              }}
-                            >
-                              <Edit className="mr-2 h-4 w-4" /> Edit Machine
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
-                              onClick={() => router.push(`/dashboard/file-upload/${machine.id}`)}
-                            >
-                              <File className="mr-2 h-4 w-4" /> File Upload
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
-                              onClick={() => router.push(`/dashboard/camera-upload/${machine.id}`)}
-                            >
-                              <Camera className="mr-2 h-4 w-4" /> Camera Upload
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
-                              onClick={() => router.push(`/dashboard/result/${machine.id}`)}
-                            >
-                              <File className="mr-2 h-4 w-4" /> View Result
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="flex cursor-pointer items-center bg-red-600 text-white rounded-md px-3 py-2 text-sm hover:bg-red-700 focus:bg-red-700 focus:text-white transition-colors"
-                              onClick={() => deleteMachine(machine.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Machine
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <CardDescription className="text-gray-400">
-                        Created on {new Date(machine.created_at).toLocaleDateString()}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center justify-between space-x-2 rounded-md bg-gray-800 p-3">
-                        <div className="flex items-center space-x-2">
-                          <Key className="h-4 w-4 text-blue-400" />
-                          <code className="text-xs text-blue-400">
-                            {machine.api_key || 'API key not available'}
-                          </code>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-gray-400 hover:bg-gray-700 hover:text-blue-400"
-                          onClick={() => copyApiKey(machine.api_key || '')}
-                          disabled={!machine.api_key}
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                          <span className="sr-only">Copy API key</span>
-                        </Button>
-                      </div>
-                      <div className="flex items-center justify-between space-x-2 rounded-md bg-gray-800 p-3">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-blue-400" />
-                          <span className="text-xs text-gray-300">Upload Interval:</span>
-                        </div>
-                        <span className="text-xs font-medium text-blue-400">
-                          {machine.upload_interval_seconds} seconds
-                        </span>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="border-t border-gray-800 bg-gray-900/50 pt-3">
-                      <div className="flex w-full items-center justify-between text-sm">
-                        <span className="text-gray-400">Status:</span>
-                        <span
-                          className={`font-medium ${
-                            machine.status === "active"
-                              ? "text-green-400"
-                              : machine.status === "inactive"
-                                ? "text-red-400"
-                                : "text-yellow-400"
-                          }`}
-                        >
-                          {machine.status.charAt(0).toUpperCase() + machine.status.slice(1)}
-                        </span>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                </motion.div>
-              ))}
+            {resultStats && (
+              <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-center text-sm text-white">
+                <div className="rounded-lg bg-gray-800 p-4">
+                  <p className="text-gray-400">Detected</p>
+                  <p className="text-blue-400 font-bold text-xl">{resultStats.detected}</p>
+                </div>
+                <div className="rounded-lg bg-gray-800 p-4">
+                  <p className="text-gray-400">Pending</p>
+                  <p className="text-yellow-400 font-bold text-xl">{resultStats.pending}</p>
+                </div>
+                <div className="rounded-lg bg-gray-800 p-4">
+                  <p className="text-gray-400">Fail</p>
+                  <p className="text-red-400 font-bold text-xl">{resultStats.fail}</p>
+                </div>
+                <div className="rounded-lg bg-gray-800 p-4">
+                  <p className="text-gray-400">Images</p>
+                  <p className="text-cyan-400 font-bold text-xl">{resultStats.total_images}</p>
+                </div>
+                <div className="rounded-lg bg-gray-800 p-4">
+                  <p className="text-gray-400">Particles</p>
+                  <p className="text-green-400 font-bold text-xl">{resultStats.total_particles}</p>
+                </div>
+                <div className="rounded-lg bg-gray-800 p-4">
+                  <p className="text-gray-400">α / e⁻ / p⁺</p>
+                  <p className="text-purple-400 font-bold text-xl">
+                    {resultStats.particles.alpha} / {resultStats.particles.electron} / {resultStats.particles.proton}
+                  </p>
+                </div>
+              </div>
+            )} 
             </AnimatePresence>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"> 
+              <AnimatePresence>
+                {filteredMachines.map((machine) => (
+                  <motion.div
+                    key={machine.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                    layout
+                  >
+                    <Card className="overflow-hidden bg-gray-900 border-gray-800 text-gray-100 hover:border-gray-700 transition-colors">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <div
+                              className={`h-2.5 w-2.5 rounded-full ${
+                                machine.status === "active"
+                                  ? "bg-green-500"
+                                  : machine.status === "inactive"
+                                    ? "bg-red-500"
+                                    : "bg-yellow-500"
+                              }`}
+                            />
+                            <CardTitle className="text-lg font-medium text-white">{machine.name}</CardTitle>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="bg-blue-900 border-blue-800 text-white rounded-lg shadow-lg shadow-blue-900/20 p-1.5 w-48"
+                            >
+                              <DropdownMenuItem
+                                className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
+                                onClick={() => copyApiKey(machine.api_key || '')}
+                              >
+                                <Copy className="mr-2 h-4 w-4" /> Copy API Key
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
+                                onClick={() => {
+                                  openEditDialog(machine)
+                                }}
+                              >
+                                <Edit className="mr-2 h-4 w-4" /> Edit Machine
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
+                                onClick={() => router.push(`/dashboard/file-upload/${machine.id}`)}
+                              >
+                                <File className="mr-2 h-4 w-4" /> File Upload
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
+                                onClick={() => router.push(`/dashboard/camera-upload/${machine.id}`)}
+                              >
+                                <Camera className="mr-2 h-4 w-4" /> Camera Upload
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="flex cursor-pointer items-center text-white rounded-md px-3 py-2 text-sm mb-1 focus:bg-blue-800 focus:text-white transition-colors"
+                                onClick={() => router.push(`/dashboard/result/${machine.id}`)}
+                              >
+                                <File className="mr-2 h-4 w-4" /> View Result
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="flex cursor-pointer items-center bg-red-600 text-white rounded-md px-3 py-2 text-sm hover:bg-red-700 focus:bg-red-700 focus:text-white transition-colors"
+                                onClick={() => deleteMachine(machine.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete Machine
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <CardDescription className="text-gray-400">
+                          Created on {new Date(machine.created_at).toLocaleDateString()}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex items-center justify-between space-x-2 rounded-md bg-gray-800 p-3">
+                          <div className="flex items-center space-x-2">
+                            <Key className="h-4 w-4 text-blue-400" />
+                            <code className="text-xs text-blue-400">
+                              {machine.api_key || 'API key not available'}
+                            </code>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-gray-400 hover:bg-gray-700 hover:text-blue-400"
+                            onClick={() => copyApiKey(machine.api_key || '')}
+                            disabled={!machine.api_key}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                            <span className="sr-only">Copy API key</span>
+                          </Button>
+                        </div>
+                        <div className="flex items-center justify-between space-x-2 rounded-md bg-gray-800 p-3">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4 text-blue-400" />
+                            <span className="text-xs text-gray-300">Upload Interval:</span>
+                          </div>
+                          <span className="text-xs font-medium text-blue-400">
+                            {machine.upload_interval_seconds} seconds
+                          </span>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="border-t border-gray-800 bg-gray-900/50 pt-3">
+                        <div className="flex w-full items-center justify-between text-sm">
+                          <span className="text-gray-400">Status:</span>
+                          <span
+                            className={`font-medium ${
+                              machine.status === "active"
+                                ? "text-green-400"
+                                : machine.status === "inactive"
+                                  ? "text-red-400"
+                                  : "text-yellow-400"
+                            }`}
+                          >
+                            {machine.status.charAt(0).toUpperCase() + machine.status.slice(1)}
+                          </span>
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
           </div>
         )}
       </main>

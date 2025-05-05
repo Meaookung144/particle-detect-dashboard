@@ -23,14 +23,14 @@ type ResultItem = {
   machine_id: string
   filename: string
   thumbnail_filename: string | null
-  status: "pending" | "complete" | "failed"
+  status: "pending" | "detected" | "failed"
   detection_data: any | null
   created_at: string
   updated_at: string
 }
 
 // Type for sort option
-type SortOption = "all" | "pending" | "complete" | "failed"
+type SortOption = "all" | "pending" | "detected" | "failed"
 
 export default function ResultPage() {
   const { id } = useParams() as { id: string }
@@ -99,7 +99,7 @@ export default function ResultPage() {
   // Get status icon based on status
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "complete":
+      case "detected":
         return <Check className="h-5 w-5 text-green-500" />
       case "pending":
         return <Clock className="h-5 w-5 text-yellow-500" />
@@ -113,7 +113,7 @@ export default function ResultPage() {
   // Get status text color based on status
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "complete":
+      case "detected":
         return "text-green-500"
       case "pending":
         return "text-yellow-500"
@@ -127,10 +127,10 @@ export default function ResultPage() {
   // Count status totals
   const getStatusCounts = () => {
     const pending = results.filter(r => r.status === "pending").length
-    const complete = results.filter(r => r.status === "complete").length
+    const detected = results.filter(r => r.status === "detected").length
     const failed = results.filter(r => r.status === "failed").length
     
-    return { pending, complete, failed, total: results.length }
+    return { pending, detected, failed, total: results.length }
   }
   
   const statusCounts = getStatusCounts()
@@ -160,8 +160,8 @@ export default function ResultPage() {
                   <span className="text-yellow-500 mr-1">{statusCounts.pending}</span>
                   <span className="text-gray-400">pending</span>
                   <span className="mx-1.5 text-gray-600">•</span>
-                  <span className="text-green-500 mr-1">{statusCounts.complete}</span>
-                  <span className="text-gray-400">complete</span>
+                  <span className="text-green-500 mr-1">{statusCounts.detected}</span>
+                  <span className="text-gray-400">detected</span>
                   <span className="mx-1.5 text-gray-600">•</span>
                   <span className="text-red-500 mr-1">{statusCounts.failed}</span>
                   <span className="text-gray-400">failed</span>
@@ -193,9 +193,9 @@ export default function ResultPage() {
                         <Clock className="mr-2 h-4 w-4 text-yellow-500" />
                         Pending ({statusCounts.pending})
                       </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="complete" className="focus:bg-gray-800 focus:text-white cursor-pointer">
+                      <DropdownMenuRadioItem value="detected" className="focus:bg-gray-800 focus:text-white cursor-pointer">
                         <Check className="mr-2 h-4 w-4 text-green-500" />
-                        Complete ({statusCounts.complete})
+                        detected ({statusCounts.detected})
                       </DropdownMenuRadioItem>
                       <DropdownMenuRadioItem value="failed" className="focus:bg-gray-800 focus:text-white cursor-pointer">
                         <AlertCircle className="mr-2 h-4 w-4 text-red-500" />
