@@ -349,37 +349,40 @@ export default function DashboardPage() {
         ) : ( 
           <div>
             <AnimatePresence>
-            {resultStats && (
-              <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-center text-sm text-white">
-                <div className="rounded-lg bg-gray-800 p-4">
-                  <p className="text-gray-400">Detected</p>
-                  <p className="text-blue-400 font-bold text-xl">{resultStats.detected}</p>
+              {resultStats && (
+                <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-center text-sm text-white">
+                  <div className="rounded-lg bg-gray-800 p-4">
+                    <p className="text-gray-400">Detected</p>
+                    <p className="text-blue-400 font-bold text-xl">{resultStats.detected}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-800 p-4">
+                    <p className="text-gray-400">Pending</p>
+                    <p className="text-yellow-400 font-bold text-xl">{resultStats.pending}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-800 p-4">
+                    <p className="text-gray-400">Fail</p>
+                    <p className="text-red-400 font-bold text-xl">{resultStats.fail}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-800 p-4">
+                    <p className="text-gray-400">Images</p>
+                    <p className="text-cyan-400 font-bold text-xl">{resultStats.total_images}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-800 p-4">
+                    <p className="text-gray-400">Particles</p>
+                    <p className="text-green-400 font-bold text-xl">{resultStats.total_particles}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-800 p-4">
+                    <p className="text-gray-400">α / e⁻ / p⁺</p>
+                    <p className="text-purple-400 font-bold text-xl">
+                      {resultStats.particles ? 
+                        `${resultStats.particles.alpha} / ${resultStats.particles.electron} / ${resultStats.particles.proton}` 
+                        : '0 / 0 / 0'
+                      }
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-lg bg-gray-800 p-4">
-                  <p className="text-gray-400">Pending</p>
-                  <p className="text-yellow-400 font-bold text-xl">{resultStats.pending}</p>
-                </div>
-                <div className="rounded-lg bg-gray-800 p-4">
-                  <p className="text-gray-400">Fail</p>
-                  <p className="text-red-400 font-bold text-xl">{resultStats.fail}</p>
-                </div>
-                <div className="rounded-lg bg-gray-800 p-4">
-                  <p className="text-gray-400">Images</p>
-                  <p className="text-cyan-400 font-bold text-xl">{resultStats.total_images}</p>
-                </div>
-                <div className="rounded-lg bg-gray-800 p-4">
-                  <p className="text-gray-400">Particles</p>
-                  <p className="text-green-400 font-bold text-xl">{resultStats.total_particles}</p>
-                </div>
-                <div className="rounded-lg bg-gray-800 p-4">
-                  <p className="text-gray-400">α / e⁻ / p⁺</p>
-                  <p className="text-purple-400 font-bold text-xl">
-                    {resultStats.particles.alpha} / {resultStats.particles.electron} / {resultStats.particles.proton}
-                  </p>
-                </div>
-              </div>
-            )} 
-            </AnimatePresence>
+              )} 
+              </AnimatePresence>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"> 
               <AnimatePresence>
                 {filteredMachines.map((machine) => (
